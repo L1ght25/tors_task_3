@@ -1,6 +1,7 @@
 package crdt
 
 import (
+	"crdt/internal/util"
 	"sync"
 	"time"
 )
@@ -50,6 +51,22 @@ func NewCRDT(origin string, peers []string) *CRDT {
 	return server
 }
 
+func (c *CRDT) GetHistory() []Operation {
+	return c.history
+}
+
+func (c *CRDT) GetTimestamps() map[string]map[string]int {
+	return c.timestamps
+}
+
+func (c *CRDT) GetValue(key string) string {
+	return c.data[key]
+}
+
+func (c *CRDT) GetData() map[string]string {
+	return c.data
+}
+
 func (c *CRDT) incrementClock() {
 	c.vector[c.origin]++
 }
@@ -79,13 +96,23 @@ func (c *CRDT) isLater(op Operation) bool {
 		}
 	}
 
+	for replica := range localTs {
+		_, exists := op.Timestamp[replica]
+		if !exists {
+			isSmaller = true
+			break
+		}
+	}
+
 	if isGreater && !isSmaller {
 		return true
 	} else if isSmaller && !isGreater {
 		return false
+	} else if !isGreater && !isSmaller {
+		return false
 	}
 
-	return op.Origin > c.origin
+	return util.Hash(op.Origin)%2 == 0
 }
 
 // ATTENTION: needs to call with lock

@@ -60,6 +60,7 @@ func (c *CRDT) SyncHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info(
 		"State after sync",
+		"replicaID", c.origin,
 		"vector", c.vector,
 		"timestamps", c.timestamps,
 		"data", c.data,
