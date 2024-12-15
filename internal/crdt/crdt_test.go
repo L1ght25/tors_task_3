@@ -3,10 +3,14 @@ package crdt_test
 import (
 	testutils "crdt/internal/test_utils"
 	"fmt"
+	"log/slog"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/rand"
 )
 
 func TestBasic(t *testing.T) {
@@ -116,4 +120,54 @@ func TestConflict(t *testing.T) {
 			"1": "3",
 		}, server.GetData())
 	}
+}
+
+func TestStrongEventualConsistency(t *testing.T) {
+	cluster := testutils.NewTestCluster(3)
+
+	rand.Seed(uint64(time.Now().UnixNano()))
+	var wg sync.WaitGroup
+
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			replica := cluster[rand.Intn(len(cluster))]
+			patch := randomPatch()
+
+			// with retries
+			numRetry := 0
+			for {
+				if err := replica.PatchServer(patch); err != nil {
+					if numRetry == 5 {
+						slog.Error("cannot patch server", "error", err)
+						os.Exit(1)
+					} else {
+						numRetry++
+						continue
+					}
+				} else {
+					break
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	for _, server := range cluster {
+		server.ForceSyncServer()
+	}
+
+	time.Sleep(3 * time.Second)
+
+	for i := 1; i < len(cluster); i++ {
+		assert.Equal(t, cluster[0].GetData(), cluster[i].GetData())
+	}
+}
+
+// Generates a random key-value pair
+func randomPatch() map[string]string {
+	key := fmt.Sprintf("key%d", rand.Intn(5))
+	value := fmt.Sprintf("value%d", rand.Intn(1000))
+	return map[string]string{key: value}
 }
