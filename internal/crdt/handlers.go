@@ -70,3 +70,17 @@ func (c *CRDT) SyncHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (c *CRDT) GetHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Get request", "replicaID", c.origin)
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(c.data)
+	if err != nil {
+		slog.Warn("get handler write error", "error", err)
+	}
+}

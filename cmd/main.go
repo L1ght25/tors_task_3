@@ -34,6 +34,7 @@ func main() {
 
 	http.HandleFunc("/patch", crdt.PatchHandler)
 	http.HandleFunc("/sync", crdt.SyncHandler)
+	http.HandleFunc("GET /get", crdt.GetHandler)
 
 	slog.Info("Starting server...", "port", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
